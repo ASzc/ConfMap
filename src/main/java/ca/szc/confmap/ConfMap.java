@@ -1,6 +1,7 @@
 package ca.szc.confmap;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -13,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Access a single-namespace conf file though the Map interface TODO: Spec of accepted conf file format
+ * Access a conf file though the Map interface TODO: Spec of accepted conf file format
  * 
  * @param <K> the type of keys maintained by this map
  * @param <V> the type of mapped values
@@ -22,19 +23,39 @@ public class ConfMap
     implements Map<String, String>
 {
 
+    /**
+     * Debug mode setting. Values > 0 mean debug is enabled.
+     */
     private static final short DEBUG = 1;
 
+    /**
+     * Charset used by this class for reading and writing files
+     */
     private static final Charset CHARSET = Charset.forName( "UTF-8" );
 
-    private final Map<String, String> confMap;
+    /**
+     * Regex Pattern used to parse a line of the conf file
+     */
+    private static final Pattern CONF_PATTERN = Pattern.compile( "^([^#][^=]*)=(.*)$" );
 
+    /**
+     * Path to the conf file which stores the persistent copy of the Map
+     */
     private final Path confFilePath;
 
+    /**
+     * If true, any methods that cause writes will fail with UnsupportedOperationException
+     */
     private final boolean readOnly;
 
     /**
-     * Instantiate a ConfMap for confFilePath in read-only mode. Read-only mode will prevent write methods from changing
-     * the file at confFilePath.
+     * In memory Map
+     */
+    private Map<String, String> confMap;
+
+    /**
+     * Instantiate a ConfMap for confFilePath in read-only mode. Read-only mode will prevent write methods having any
+     * effect.
      * 
      * @param confFilePath
      */
@@ -51,16 +72,27 @@ public class ConfMap
      */
     public ConfMap( Path confFilePath, boolean readOnly )
     {
+        this.confFilePath = confFilePath;
+        this.readOnly = readOnly;
+        reload();
+    }
+
+    /**
+     * Replace in memory Map with contents from confFilePath given during instantiation
+     * 
+     * @return The old in memory Map that was replaced
+     */
+    public Map<String, String> reload()
+    {
         LinkedHashMap<String, String> confMap = new LinkedHashMap<String, String>();
 
         try (BufferedReader reader = Files.newBufferedReader( confFilePath, CHARSET ))
         {
-            Pattern confLinePattern = Pattern.compile( "^([^#][^=]*)=(.*)$" );
             String line;
 
             while ( ( line = reader.readLine() ) != null )
             {
-                Matcher confLineMatcher = confLinePattern.matcher( line );
+                Matcher confLineMatcher = CONF_PATTERN.matcher( line );
                 boolean confLineMatch = confLineMatcher.matches();
 
                 if ( confLineMatch )
@@ -70,11 +102,11 @@ public class ConfMap
 
                     confMap.put( key, value );
                     if ( DEBUG > 0 )
-                        System.out.println( "Accepted  K:" + key + "  V:" + value );
+                        System.out.println( this.getClass().getName() + " Accepted  K:" + key + "  V:" + value );
                 }
                 else if ( DEBUG > 0 )
                 {
-                    System.out.println( "Ignored Line: '" + line + "'" );
+                    System.out.println( this.getClass().getName() + " Ignored Line: '" + line + "'" );
                 }
             }
         }
@@ -85,72 +117,105 @@ public class ConfMap
                 x.printStackTrace();
         }
 
-        this.readOnly = readOnly;
+        Map<String, String> oldMap = this.confMap;
         this.confMap = confMap;
-        this.confFilePath = confFilePath;
+        return oldMap;
     }
 
     @Override
     public int size()
     {
-        // TODO Auto-generated method stub
-        return 0;
+        return confMap.size();
     }
 
     @Override
     public boolean isEmpty()
     {
-        // TODO Auto-generated method stub
-        return false;
+        return confMap.isEmpty();
     }
 
     @Override
     public boolean containsKey( Object key )
     {
-        // TODO Auto-generated method stub
-        return false;
+        return confMap.containsValue( key );
     }
 
     @Override
     public boolean containsValue( Object value )
     {
-        // TODO Auto-generated method stub
-        return false;
+        return confMap.containsValue( value );
     }
 
     @Override
     public String get( Object key )
     {
-        // TODO Auto-generated method stub
-        return null;
+        return confMap.get( key );
     }
 
     @Override
     public String put( String key, String value )
     {
-        // TODO Auto-generated method stub
-        return null;
+        if ( !readOnly )
+        {
+            // TODO
+            return null;
+        }
+        else
+        {
+            throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
+        }
     }
 
     @Override
     public String remove( Object key )
     {
-        // TODO Auto-generated method stub
-        return null;
+        if ( !readOnly )
+        {
+            // TODO
+            return null;
+        }
+        else
+        {
+            throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
+        }
     }
 
     @Override
     public void putAll( Map<? extends String, ? extends String> m )
     {
-        // TODO Auto-generated method stub
-
+        if ( !readOnly )
+        {
+            // TODO
+        }
+        else
+        {
+            throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
+        }
     }
 
     @Override
     public void clear()
     {
-        // TODO Auto-generated method stub
-
+        if ( !readOnly )
+        {
+            // Set in-memory and persistent both to no entries
+            confMap.clear();
+            try (BufferedWriter writer = Files.newBufferedWriter( confFilePath, CHARSET ))
+            {
+                String empty = "";
+                writer.write( empty, 0, empty.length() );
+            }
+            catch ( IOException x )
+            {
+                System.err.format( this.getClass().getName() + " IOException when clearing confFilePath: %s%n", x );
+                if ( DEBUG > 0 )
+                    x.printStackTrace();
+            }
+        }
+        else
+        {
+            throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
+        }
     }
 
     @Override
