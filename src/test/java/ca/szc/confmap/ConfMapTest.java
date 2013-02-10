@@ -38,6 +38,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import ca.szc.confmap.fileformats.BasicLinuxFormat;
+
 public class ConfMapTest
 {
 
@@ -89,10 +91,11 @@ public class ConfMapTest
 
         try
         {
+            // FIXME need to fix to target the FileFormat implementing class used
             // Set DEBUG > 0 before testing the class to enable debug output
             // Yes, we're modifying a private final field at runtime... *evil laughter*
             // http://stackoverflow.com/questions/3301635
-            Field field = ConfMap.class.getDeclaredField( "DEBUG" );
+            Field field = BasicLinuxFormat.class.getDeclaredField( "DEBUG" );
             // Strip private
             field.setAccessible( true );
             // Strip final
@@ -107,7 +110,7 @@ public class ConfMapTest
             fail( "Exception '" + x + "' when setting DEBUG mode on ConfMap" );
         }
 
-        ConfMap confMap = new ConfMap( TEST_CONF_FILE );
+        ConfMap confMap = new ConfMap( TEST_CONF_FILE, new BasicLinuxFormat() );
         assertEquals( "Entries stored in ConfMap don't match the gold Map's entries.", goldMap.entrySet(),
                       confMap.entrySet() );
     }
