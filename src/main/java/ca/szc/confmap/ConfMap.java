@@ -26,6 +26,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Set;
 
+import ca.szc.confmap.fileformats.BasicLinuxFormat;
 import ca.szc.confmap.fileformats.FileFormat;
 
 /**
@@ -57,9 +58,33 @@ public class ConfMap
 
     /**
      * Instantiate a ConfMap for confFilePath in read-only mode. Read-only mode will prevent write methods having any
+     * effect. Use the default FileFormat BasicLinuxFormat.
+     * 
+     * @param confFilePath
+     */
+    public ConfMap( Path confFilePath )
+    {
+        this( confFilePath, new BasicLinuxFormat() );
+    }
+
+    /**
+     * Instantiate a ConfMap for confFilePath with a read-only mode based on readOnly. Use the default FileFormat
+     * BasicLinuxFormat.
+     * 
+     * @param confFilePath The location of the persistent conf file.
+     * @param readOnly true will allow write methods to change the file at confFilePath.
+     */
+    public ConfMap( Path confFilePath, boolean readOnly )
+    {
+        this( confFilePath, readOnly, new BasicLinuxFormat() );
+    }
+
+    /**
+     * Instantiate a ConfMap for confFilePath in read-only mode. Read-only mode will prevent write methods having any
      * effect.
      * 
      * @param confFilePath
+     * @param format The FileFormat for the file
      */
     public ConfMap( Path confFilePath, FileFormat format )
     {
@@ -71,6 +96,7 @@ public class ConfMap
      * 
      * @param confFilePath The location of the persistent conf file.
      * @param readOnly true will allow write methods to change the file at confFilePath.
+     * @param format The FileFormat for the file
      */
     public ConfMap( Path confFilePath, boolean readOnly, FileFormat format )
     {
@@ -156,29 +182,29 @@ public class ConfMap
     }
 
     @SuppressWarnings( "unchecked" )
+    // We are actually checking the types manually.
     @Override
     public void putAll( Map<? extends String, ? extends String> map )
     {
-        if ( map.size() > 0 )
+        if ( !readOnly )
         {
-            if ( !( map.keySet().toArray()[0] instanceof String ) )
+            if ( map.size() > 0 )
             {
-                throw new IllegalArgumentException( "Map keys must be of type String" );
-            }
-            else if ( !( map.values().toArray()[0] instanceof String ) )
-            {
-                throw new IllegalArgumentException( "Map values must be of type String" );
-            }
-
-            if ( !readOnly )
-            {
+                if ( !( map.keySet().toArray()[0] instanceof String ) )
+                {
+                    throw new IllegalArgumentException( "Map keys must be of type String" );
+                }
+                else if ( !( map.values().toArray()[0] instanceof String ) )
+                {
+                    throw new IllegalArgumentException( "Map values must be of type String" );
+                }
                 confMap.putAll( map );
                 fileIO.writeAll( filePath, (Map<String, String>) map );
             }
-            else
-            {
-                throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
-            }
+        }
+        else
+        {
+            throw new UnsupportedOperationException( this.getClass().getName() + " read-only mode is active" );
         }
     }
 
